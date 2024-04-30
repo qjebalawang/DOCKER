@@ -1,0 +1,58 @@
+---
+- hosts: all
+  become: true
+  pre_tasks:
+
+  - name: install docker
+    shell:
+      sudo apt-get install docker.io -y
+    when: ansible_distribution == "Ubuntu"
+
+  - name: install docker sdk
+    shell:
+      pip3 install docker-py
+
+  - name: start / enable docker service
+    service:
+      name: docker
+      state: started
+      enabled: true
+
+  - name: restart docker service
+    service:
+      name: docker
+      state: restarted
+      enabled: true
+
+  - name: dockerfile directory
+    file:
+      path: /root/demo-dockerfile
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+
+- hosts: all
+  become: yes
+  tasks:
+
+    - name: Deploy Portainer
+      community.docker.docker_container:
+        name: portainer
+        image: portainer/portainer-ce
+        ports:
+          - "9000:9000"
+          - "8000:8000"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+          - portainer_data:/data
+        restart_policy: always
+
+    - name: Deploy Watchtower
+      community.docker.docker_container:
+        name: watchtower
+        image: containrrr/watchtower
+        command: --schedule "0 0 4 * * *" --debug
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        restart_policy: always
